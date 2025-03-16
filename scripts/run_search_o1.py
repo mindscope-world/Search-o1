@@ -14,7 +14,7 @@ from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
 
 from bing_search import (
-    bing_web_search, 
+    # bing_web_search, 
     extract_relevant_info, 
     duckduckgo_search,
     fetch_page_content, 
@@ -158,19 +158,19 @@ def parse_args():
     )
 
     # Bing API Configuration
-    parser.add_argument(
-        '--bing_subscription_key',
-        type=str,
-        required=True,
-        help="Bing Search API subscription key."
-    )
+    # parser.add_argument(
+    #     '--bing_subscription_key',
+    #     type=str,
+    #     required=True,
+    #     help="Bing Search API subscription key."
+    # )
 
-    parser.add_argument(
-        '--bing_endpoint',
-        type=str,
-        default="https://api.bing.microsoft.com/v7.0/search",
-        help="Bing Search API endpoint."
-    )
+    # parser.add_argument(
+    #     '--bing_endpoint',
+    #     type=str,
+    #     default="https://api.bing.microsoft.com/v7.0/search",
+    #     help="Bing Search API endpoint."
+    # )
 
     return parser.parse_args()
 
@@ -540,11 +540,11 @@ def main():
                             try:
                                 # results = bing_web_search(search_query, bing_subscription_key, bing_endpoint, market='en-US', language='en')
                                 # With this conditional block:
-                                if args.search_engine == 'bing':
-                                    results = bing_web_search(search_query, bing_subscription_key, bing_endpoint, market='en-US', language='en')
-                                elif args.search_engine == 'duckduckgo':
-                                    results = duckduckgo_search(search_query, max_results=top_k)
-                                                                
+                                # if args.search_engine == 'bing':
+                                #     results = bing_web_search(search_query, bing_subscription_key, bing_endpoint, market='en-US', language='en')
+                                # elif args.search_engine == 'duckduckgo':
+                                
+                                results = duckduckgo_search(search_query, max_results=top_k)                                
                                 search_cache[search_query] = results
                                 print(f"Executed and cached search for query: \"{search_query}\"")
                             except Exception as e:
