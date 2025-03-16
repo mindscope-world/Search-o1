@@ -199,8 +199,8 @@ def main():
     top_k_sampling = args.top_k_sampling
     repetition_penalty = args.repetition_penalty
     max_tokens = args.max_tokens
-    bing_subscription_key = args.bing_subscription_key
-    bing_endpoint = args.bing_endpoint
+    # bing_subscription_key = args.bing_subscription_key
+    # bing_endpoint = args.bing_endpoint
     use_jina = args.use_jina
     jina_api_key = args.jina_api_key
     
