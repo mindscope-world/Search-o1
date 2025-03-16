@@ -414,6 +414,32 @@ def bing_web_search(query: str, subscription_key: str, endpoint: str, market: st
         print(f"Error in Bing search: {str(e)}")
         return []
 
+def extract_relevant_info(search_results: List[Dict[str, Any]], max_results: int = 10) -> List[Dict[str, str]]:
+    """
+    Extract relevant information from search results (works with DuckDuckGo/Jina/Bing formats).
+    
+    Args:
+        search_results: Raw search results from any supported engine
+        max_results: Maximum number of results to return
+        
+    Returns:
+        List of processed results with standardized format
+    """
+    processed_results = []
+    for result in search_results[:max_results]:
+        processed = {
+            'title': result.get('title', 'No title available'),
+            'url': result.get('url', ''),
+            'snippet': result.get('snippet', 'No snippet available'),
+            'site_name': result.get('site_name', ''),
+            'date': result.get('date', ''),
+            'context': result.get('context', '')
+        }
+        # Clean special characters from snippet
+        processed['snippet'] = re.sub(r'[\xa0\n\t]+', ' ', processed['snippet']).strip()
+        processed_results.append(processed)
+    return processed_results
+
 def main():
     parser = argparse.ArgumentParser(description='Run search with various search engines')
     parser.add_argument('--dataset_name', type=str, required=True, help='Name of the dataset')

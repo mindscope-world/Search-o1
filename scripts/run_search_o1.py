@@ -544,7 +544,8 @@ def main():
                                 #     results = bing_web_search(search_query, bing_subscription_key, bing_endpoint, market='en-US', language='en')
                                 # elif args.search_engine == 'duckduckgo':
                                 
-                                results = duckduckgo_search(search_query, max_results=top_k)                                
+                                results = duckduckgo_search(search_query, max_results=top_k)  
+                                relevant_info = extract_relevant_info(results)[:top_k]                              
                                 search_cache[search_query] = results
                                 print(f"Executed and cached search for query: \"{search_query}\"")
                             except Exception as e:
