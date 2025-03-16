@@ -16,6 +16,7 @@ from vllm import LLM, SamplingParams
 from bing_search import (
     bing_web_search, 
     extract_relevant_info, 
+    duckduckgo_search,
     fetch_page_content, 
     extract_snippet_with_context
 )
@@ -537,7 +538,13 @@ def main():
                             print(f"Using cached search results for query: \"{search_query}\"")
                         else:
                             try:
-                                results = bing_web_search(search_query, bing_subscription_key, bing_endpoint, market='en-US', language='en')
+                                # results = bing_web_search(search_query, bing_subscription_key, bing_endpoint, market='en-US', language='en')
+                                # With this conditional block:
+                                if args.search_engine == 'bing':
+                                    results = bing_web_search(search_query, bing_subscription_key, bing_endpoint, market='en-US', language='en')
+                                elif args.search_engine == 'duckduckgo':
+                                    results = duckduckgo_search(search_query, max_results=top_k)
+                                                                
                                 search_cache[search_query] = results
                                 print(f"Executed and cached search for query: \"{search_query}\"")
                             except Exception as e:

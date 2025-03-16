@@ -363,6 +363,57 @@ def jina_search(query: str, jina_api_key: str, max_results: int = 10) -> List[Di
         return []
 
 
+def bing_web_search(query: str, subscription_key: str, endpoint: str, market: str = 'en-US', language: str = 'en', max_results: int = 10) -> List[Dict[str, Any]]:
+    """
+    Perform a search using Bing Search API.
+    
+    Args:
+        query (str): Search query.
+        subscription_key (str): Azure Cognitive Services subscription key.
+        endpoint (str): Bing Search API endpoint.
+        market (str): Market code (e.g., 'en-US').
+        language (str): Language code (e.g., 'en').
+        max_results (int): Maximum number of results to return.
+        
+    Returns:
+        List[Dict[str, Any]]: List of search results.
+    """
+    try:
+        headers = {
+            'Ocp-Apim-Subscription-Key': subscription_key
+        }
+        params = {
+            'q': query,
+            'mkt': market,
+            'setLang': language,
+            'count': max_results,
+            'responseFilter': 'Webpages'
+        }
+        
+        response = session.get(endpoint, headers=headers, params=params, timeout=20)
+        response.raise_for_status()
+        search_results = response.json()
+        
+        results = []
+        if 'webPages' in search_results and 'value' in search_results['webPages']:
+            for i, item in enumerate(search_results['webPages']['value']):
+                result = {
+                    'id': i + 1,
+                    'title': item.get('name', ''),
+                    'url': item.get('url', ''),
+                    'site_name': item.get('displayUrl', '').split('/')[2] if '//' in item.get('displayUrl', '') else '',
+                    'date': '',  # Bing does not provide publication date in basic results
+                    'snippet': item.get('snippet', ''),
+                    'context': ''
+                }
+                results.append(result)
+        
+        print(f"Found {len(results)} results from Bing")
+        return results
+    except Exception as e:
+        print(f"Error in Bing search: {str(e)}")
+        return []
+
 def main():
     parser = argparse.ArgumentParser(description='Run search with various search engines')
     parser.add_argument('--dataset_name', type=str, required=True, help='Name of the dataset')
