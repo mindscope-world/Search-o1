@@ -171,6 +171,14 @@ def parse_args():
     #     default="https://api.bing.microsoft.com/v7.0/search",
     #     help="Bing Search API endpoint."
     # )
+    
+    parser.add_argument(
+    '--search_engine',
+    type=str,
+    default='duckduckgo',
+    choices=['duckduckgo', 'jina'],  # Remove 'bing' if no longer supported
+    help='Search engine to use'
+    )
 
     return parser.parse_args()
 
