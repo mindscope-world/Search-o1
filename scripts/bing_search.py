@@ -1,3 +1,6 @@
+
+
+
 import os
 import json
 import requests
@@ -11,9 +14,9 @@ import pdfplumber
 from io import BytesIO
 import re
 import string
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict, Any
 from nltk.tokenize import sent_tokenize
-
+import argparse
 
 # ----------------------- Custom Headers -----------------------
 headers = {
@@ -32,10 +35,10 @@ session = requests.Session()
 session.headers.update(headers)
 
 
-
 def remove_punctuation(text: str) -> str:
     """Remove punctuation from the text."""
     return text.translate(str.maketrans("", "", string.punctuation))
+
 
 def f1_score(true_set: set, pred_set: set) -> float:
     """Calculate the F1 score between two sets of words."""
@@ -45,6 +48,7 @@ def f1_score(true_set: set, pred_set: set) -> float:
     precision = intersection / float(len(pred_set))
     recall = intersection / float(len(true_set))
     return 2 * (precision * recall) / (precision + recall)
+
 
 def extract_snippet_with_context(full_text: str, snippet: str, context_chars: int = 2500) -> Tuple[bool, str]:
     """
@@ -68,7 +72,6 @@ def extract_snippet_with_context(full_text: str, snippet: str, context_chars: in
         best_sentence = None
         best_f1 = 0.2
 
-        # sentences = re.split(r'(?<=[.!?]) +', full_text)  # Split sentences using regex, supporting ., !, ? endings
         sentences = sent_tokenize(full_text)  # Split sentences using nltk's sent_tokenize
 
         for sentence in sentences:
@@ -93,6 +96,7 @@ def extract_snippet_with_context(full_text: str, snippet: str, context_chars: in
     except Exception as e:
         return False, f"Failed to extract snippet context due to {str(e)}"
 
+
 def extract_text_from_url(url, use_jina=False, jina_api_key=None, snippet: Optional[str] = None):
     """
     Extract text from a URL. If a snippet is provided, extract the context related to it.
@@ -100,6 +104,7 @@ def extract_text_from_url(url, use_jina=False, jina_api_key=None, snippet: Optio
     Args:
         url (str): URL of a webpage or PDF.
         use_jina (bool): Whether to use Jina for extraction.
+        jina_api_key (str): API key for Jina.
         snippet (Optional[str]): The snippet to search for.
 
     Returns:
@@ -150,6 +155,7 @@ def extract_text_from_url(url, use_jina=False, jina_api_key=None, snippet: Optio
     except Exception as e:
         return f"Unexpected error: {str(e)}"
 
+
 def fetch_page_content(urls, max_workers=32, use_jina=False, jina_api_key=None, snippets: Optional[dict] = None):
     """
     Concurrently fetch content from multiple URLs.
@@ -158,6 +164,7 @@ def fetch_page_content(urls, max_workers=32, use_jina=False, jina_api_key=None, 
         urls (list): List of URLs to scrape.
         max_workers (int): Maximum number of concurrent threads.
         use_jina (bool): Whether to use Jina for extraction.
+        jina_api_key (str): API key for Jina.
         snippets (Optional[dict]): A dictionary mapping URLs to their respective snippets.
 
     Returns:
@@ -179,47 +186,6 @@ def fetch_page_content(urls, max_workers=32, use_jina=False, jina_api_key=None, 
                 results[url] = f"Error fetching {url}: {exc}"
             time.sleep(0.2)  # Simple rate limiting
     return results
-
-
-def bing_web_search(query, subscription_key, endpoint, market='en-US', language='en', timeout=20):
-    """
-    Perform a search using the Bing Web Search API with a set timeout.
-
-    Args:
-        query (str): Search query.
-        subscription_key (str): Subscription key for the Bing Search API.
-        endpoint (str): Endpoint for the Bing Search API.
-        market (str): Market, e.g., "en-US" or "zh-CN".
-        language (str): Language of the results, e.g., "en".
-        timeout (int or float or tuple): Request timeout in seconds.
-                                         Can be a float representing the total timeout,
-                                         or a tuple (connect timeout, read timeout).
-
-    Returns:
-        dict: JSON response of the search results. Returns None or raises an exception if the request times out.
-    """
-    headers = {
-        "Ocp-Apim-Subscription-Key": subscription_key
-    }
-    params = {
-        "q": query,
-        "mkt": market,
-        "setLang": language,
-        "textDecorations": True,
-        "textFormat": "HTML"
-    }
-
-    try:
-        response = requests.get(endpoint, headers=headers, params=params, timeout=timeout)
-        response.raise_for_status()  # Raise exception if the request failed
-        search_results = response.json()
-        return search_results
-    except Timeout:
-        print(f"Bing Web Search request timed out ({timeout} seconds) for query: {query}")
-        return {}  # Or you can choose to raise an exception
-    except requests.exceptions.RequestException as e:
-        print(f"Error occurred during Bing Web Search request: {e}")
-        return {}
 
 
 def extract_pdf_text(url):
@@ -253,68 +219,178 @@ def extract_pdf_text(url):
     except Exception as e:
         return f"Error: {str(e)}"
 
-def extract_relevant_info(search_results):
-    """
-    Extract relevant information from Bing search results.
 
+# --- New Functions for Alternative Search Engines ---
+
+def duckduckgo_search(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+    """
+    Perform a search using DuckDuckGo's HTML API.
+    
     Args:
-        search_results (dict): JSON response from the Bing Web Search API.
-
+        query (str): Search query.
+        max_results (int): Maximum number of results to return.
+        
     Returns:
-        list: A list of dictionaries containing the extracted information.
+        List[Dict[str, Any]]: List of search results.
     """
-    useful_info = []
-    
-    if 'webPages' in search_results and 'value' in search_results['webPages']:
-        for id, result in enumerate(search_results['webPages']['value']):
-            info = {
-                'id': id + 1,  # Increment id for easier subsequent operations
-                'title': result.get('name', ''),
-                'url': result.get('url', ''),
-                'site_name': result.get('siteName', ''),
-                'date': result.get('datePublished', '').split('T')[0],
-                'snippet': result.get('snippet', ''),  # Remove HTML tags
-                # Add context content to the information
-                'context': ''  # Reserved field to be filled later
-            }
-            useful_info.append(info)
-    
-    return useful_info
+    try:
+        # DuckDuckGo search URL
+        search_url = f"https://html.duckduckgo.com/html/"
+        params = {
+            'q': query,
+            's': '0',  # Start from the first result
+            'dc': '20',  # Request more results than needed to ensure we get enough
+            'kl': 'us-en',  # Region and language
+        }
+        
+        print(f"Performing DuckDuckGo search for: {query}")
+        response = session.post(search_url, data=params, timeout=20)
+        response.raise_for_status()
+        
+        # Parse the HTML response
+        soup = BeautifulSoup(response.text, 'html.parser')
+        results = []
+        
+        # Find all result elements
+        result_elements = soup.select('.result')
+        
+        for i, element in enumerate(result_elements):
+            if i >= max_results:
+                break
+                
+            # Extract title and URL
+            title_element = element.select_one('.result__title')
+            url_element = element.select_one('.result__url')
+            snippet_element = element.select_one('.result__snippet')
+            
+            if title_element and url_element:
+                title = title_element.get_text(strip=True)
+                url = url_element.get('href', '')
+                
+                # Clean up the URL (DuckDuckGo uses redirects)
+                if '/uddg=' in url:
+                    url = url.split('/uddg=')[1].split('&')[0]
+                    url = requests.utils.unquote(url)
+                
+                # Extract snippet if available
+                snippet = ""
+                if snippet_element:
+                    snippet = snippet_element.get_text(strip=True)
+                
+                # Extract site name from URL
+                site_name = url.split('/')[2] if '://' in url else url.split('/')[0]
+                
+                result = {
+                    'id': i + 1,
+                    'title': title,
+                    'url': url,
+                    'site_name': site_name,
+                    'date': '',  # DuckDuckGo doesn't provide dates directly
+                    'snippet': snippet,
+                    'context': ''  # Reserved field to be filled later
+                }
+                results.append(result)
+        
+        print(f"Found {len(results)} results from DuckDuckGo")
+        return results
+    except Exception as e:
+        print(f"Error in DuckDuckGo search: {str(e)}")
+        return []
 
 
-# ------------------------------------------------------------
+def jina_search(query: str, jina_api_key: str, max_results: int = 10) -> List[Dict[str, Any]]:
+    """
+    Perform a search using Jina's API.
+    
+    Args:
+        query (str): Search query.
+        jina_api_key (str): API key for Jina.
+        max_results (int): Maximum number of results to return.
+        
+    Returns:
+        List[Dict[str, Any]]: List of search results.
+    """
+    try:
+        # Define Jina search endpoint
+        search_url = "https://api.jina.ai/v1/search"
+        
+        headers = {
+            'Authorization': f'Bearer {jina_api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        data = {
+            "query": query,
+            "top_k": max_results
+        }
+        
+        print(f"Performing Jina search for: {query}")
+        response = requests.post(search_url, headers=headers, json=data, timeout=20)
+        response.raise_for_status()
+        
+        search_results = response.json()
+        results = []
+        
+        # Process results
+        if 'results' in search_results:
+            for i, result in enumerate(search_results['results']):
+                if i >= max_results:
+                    break
+                    
+                # Extract information from result
+                url = result.get('url', '')
+                title = result.get('title', '')
+                snippet = result.get('snippet', '')
+                
+                # Extract domain from URL as site name
+                site_name = url.split('/')[2] if '://' in url else url.split('/')[0]
+                
+                result_data = {
+                    'id': i + 1,
+                    'title': title,
+                    'url': url,
+                    'site_name': site_name,
+                    'date': result.get('date', ''),
+                    'snippet': snippet,
+                    'context': ''  # Reserved field to be filled later
+                }
+                results.append(result_data)
+        
+        print(f"Found {len(results)} results from Jina")
+        return results
+    except Exception as e:
+        print(f"Error in Jina search: {str(e)}")
+        return []
 
-if __name__ == "__main__":
-    # Example usage
-    # Define the query to search
-    query = "Structure of dimethyl fumarate"
-    
-    # Subscription key and endpoint for Bing Search API
-    BING_SUBSCRIPTION_KEY = "YOUR_BING_SUBSCRIPTION_KEY"
-    if not BING_SUBSCRIPTION_KEY:
-        raise ValueError("Please set the BING_SEARCH_V7_SUBSCRIPTION_KEY environment variable.")
-    
-    bing_endpoint = "https://api.bing.microsoft.com/v7.0/search"
-    
-    # Perform the search
-    print("Performing Bing Web Search...")
-    search_results = bing_web_search(query, BING_SUBSCRIPTION_KEY, bing_endpoint)
-    
-    print("Extracting relevant information from search results...")
-    extracted_info = extract_relevant_info(search_results)
 
-    print("Fetching and extracting context for each snippet...")
-    for info in tqdm(extracted_info, desc="Processing Snippets"):
-        full_text = extract_text_from_url(info['url'], use_jina=True)  # Get full webpage text
-        if full_text and not full_text.startswith("Error"):
-            success, context = extract_snippet_with_context(full_text, info['snippet'])
-            if success:
-                info['context'] = context
-            else:
-                info['context'] = f"Could not extract context. Returning first 8000 chars: {full_text[:8000]}"
-        else:
-            info['context'] = f"Failed to fetch full text: {full_text}"
-
-    # print("Your Search Query:", query)
-    # print("Final extracted information with context:")
-    # print(json.dumps(extracted_info, indent=2, ensure_ascii=False))
+def main():
+    parser = argparse.ArgumentParser(description='Run search with various search engines')
+    parser.add_argument('--dataset_name', type=str, required=True, help='Name of the dataset')
+    parser.add_argument('--split', type=str, required=True, help='Dataset split')
+    parser.add_argument('--max_search_limit', type=int, default=5, help='Maximum search limit')
+    parser.add_argument('--max_turn', type=int, default=10, help='Maximum number of turns')
+    parser.add_argument('--top_k', type=int, default=10, help='Top k results to return')
+    parser.add_argument('--max_doc_len', type=int, default=3000, help='Maximum document length')
+    parser.add_argument('--use_jina', type=str, default='False', choices=['True', 'False'], help='Whether to use Jina for content extraction')
+    parser.add_argument('--model_path', type=str, required=True, help='Path to the model')
+    parser.add_argument('--jina_api_key', type=str, help='API key for Jina')
+    parser.add_argument('--search_engine', type=str, default='duckduckgo', choices=['bing', 'duckduckgo', 'jina'], help='Search engine to use')
+    parser.add_argument('--bing_subscription_key', type=str, help='Subscription key for Bing Search API (only needed if using Bing)')
+    
+    args = parser.parse_args()
+    
+    # Convert string 'True'/'False' to boolean
+    use_jina_extraction = args.use_jina.lower() == 'true'
+    
+    # Check if required API keys are provided based on the search engine
+    if args.search_engine == 'bing' and not args.bing_subscription_key:
+        parser.error("--bing_subscription_key is required when using Bing search engine")
+    
+    if args.search_engine == 'jina' and not args.jina_api_key:
+        parser.error("--jina_api_key is required when using Jina search engine")
+    
+    if use_jina_extraction and not args.jina_api_key:
+        parser.error("--jina_api_key is required when using Jina for content extraction (--use_jina True)")
+    
+    # Example query - in a real scenario, this would come from your dataset
+    query = f"Example query from {args.dataset_name} {args.split} dataset"
