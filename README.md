@@ -36,6 +36,9 @@
 
 <h5 align="center"> If you like our project, please give us a star ⭐ on GitHub for the latest update.</h5>
 
+## Updates
+- Added DuckDuckGo Search to replace Bing Search.
+
 ## 📣 Latest News
 - **01/10/2025**: The brief introduction of our Search-o1 can be found on platforms like [X](https://x.com/_akhaliq/status/1877584951840764166?t=fnbTblnqhiPtAyYr1PHbbw&s=19), [Zhihu](https://zhuanlan.zhihu.com/p/17527068532), and [WeChat](https://mp.weixin.qq.com/s/J_n5cn_Zp4lRs8ESqFEFmg).
 - **01/10/2025**: The paper for Search-o1 is available. You can access it on [arXiv](https://arxiv.org/abs/2501.05366), [alphaXiv](https://www.alphaxiv.org/abs/2501.05366) and [HF-paper](https://huggingface.co/papers/2501.05366).
